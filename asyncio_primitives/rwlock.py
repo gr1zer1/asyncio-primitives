@@ -13,11 +13,12 @@ class RWLock:
         self.obj: Any = obj
         self._readers: int = 0
         self._condition: Condition = Condition()
+        self._waiting_writers: int = 0
     
 
     async def _acquire_read(self):
         async with self._condition:
-            while self._readers < 0:
+            while self._readers < 0 and self._waiting_writers == 0:
                 await self._condition.wait()
             self._readers += 1
 
@@ -31,8 +32,10 @@ class RWLock:
 
     async def _acquire_write(self):
         async with self._condition:
+            self._waiting_writers += 1
             while self._readers != 0:
                 await self._condition.wait()
+            self._waiting_writers -= 1
             self._readers = -1
     
 
