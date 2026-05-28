@@ -18,7 +18,7 @@ class RWLock:
 
     async def _acquire_read(self):
         async with self._condition:
-            while self._readers < 0 and self._waiting_writers == 0:
+            while self._readers < 0 or self._waiting_writers > 0:
                 await self._condition.wait()
             self._readers += 1
 

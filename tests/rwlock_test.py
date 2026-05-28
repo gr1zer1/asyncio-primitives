@@ -93,3 +93,45 @@ async def test_readers_count_resets():
     async with await rwlock.write():
         pass
     assert rwlock._readers == 0
+
+
+@pytest.mark.asyncio
+async def test_multiple_concurrent_writers():
+    obj = Value(0)
+    rwlock = RWLock(obj)
+    results = []
+
+    async def writer(n):
+        async with await rwlock.write() as guard:
+            await asyncio.sleep(0.05)
+            results.append(n)
+
+    await asyncio.gather(*[writer(i) for i in range(5)])
+
+    assert len(results) == 5
+
+
+@pytest.mark.asyncio
+async def test_writer_priority():
+    obj = Value(0)
+    rwlock = RWLock(obj)
+    results = []
+
+    async def slow_reader():
+        async with await rwlock.read():
+            await asyncio.sleep(0.1)  
+            results.append("slow_reader")
+
+    async def writer():
+        await asyncio.sleep(0.03)  
+        async with await rwlock.write():
+            results.append("writer")
+
+    async def late_reader():
+        await asyncio.sleep(0.05)  
+        async with await rwlock.read():
+            results.append("late_reader")
+
+    await asyncio.gather(slow_reader(), writer(), late_reader())
+
+    assert results == ["slow_reader", "writer", "late_reader"]
