@@ -1,6 +1,9 @@
+from __future__ import annotations
 from typing import Any
 from asyncio.locks import Condition
 from abc import ABC, abstractmethod
+
+
 
 
 class RWLock:
@@ -39,13 +42,15 @@ class RWLock:
             self._condition.notify_all()
     
 
-    async def read(self):
+    async def read(self) -> ReadGuard:
         await self._acquire_read()
+
         return ReadGuard(self)
     
 
-    async def write(self):
+    async def write(self) -> WriteGuard:
         await self._acquire_write()
+
         return WriteGuard(self)
     
     
@@ -54,12 +59,10 @@ class Guard(ABC):
     @abstractmethod
     async def close(self):...
 
-    @abstractmethod
     async def __aenter__(self):
         return self
     
 
-    @abstractmethod
     async def __aexit__(self, exc_type, exc_value, traceback):
         await self.close()
     
