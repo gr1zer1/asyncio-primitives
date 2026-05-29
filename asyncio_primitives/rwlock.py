@@ -2,15 +2,15 @@ from __future__ import annotations
 from typing import Any
 from asyncio.locks import Condition
 from abc import ABC, abstractmethod
-
+from enum import Enum
 
 
 
 class RWLock:
 
 
-    def __init__(self, obj: Any):
-        self.obj: Any = obj
+    def __init__(self, obj: Any | None = None):
+        self.obj: Any | None= obj
         self._readers: int = 0
         self._condition: Condition = Condition()
         self._waiting_writers: int = 0
@@ -56,6 +56,18 @@ class RWLock:
 
         return WriteGuard(self)
     
+    async def reader(self):
+        await self._acquire_read()
+
+        return RWLockGuard(lock=self, roll=RWRoll.Reader)
+    
+    async def writer(self):
+        await self._acquire_write()
+        
+        return RWLockGuard(lock = self, roll=RWRoll.Writer)
+    
+
+
     
 class Guard(ABC):
 
@@ -75,7 +87,19 @@ class Guard(ABC):
 
 class ReadGuard(Guard):
     def __init__(self, lock: RWLock):
-        self.lock = lock
+
+        object.__setattr__(self, "lock", lock)
+    
+
+    def __getattr__(self, name):
+        target = object.__getattribute__(self, "lock").obj
+        
+        attr = getattr(target, name)
+        return attr
+    
+    def __setattr__(self, name, value):
+        raise AttributeError("Читатель (ReaderGuard) не имеет прав на модификацию объекта!")
+
 
     
     @property
@@ -109,3 +133,21 @@ class WriteGuard(Guard):
         await self.lock._release_write()
 
 
+class RWLockGuard:
+    def __init__(self, lock: RWLock, roll: RWRoll):
+        self.roll = roll
+        self.lock = lock
+    
+
+    async def __aenter__(self):
+        ...
+    
+
+    async def __aexit__(self, exc_type, exc, tb):
+        ...
+
+
+
+class RWRoll(Enum):
+    Reader = 1
+    Writer = -1
