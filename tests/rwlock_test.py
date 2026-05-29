@@ -32,6 +32,22 @@ async def test_basic_write():
 
 
 @pytest.mark.asyncio
+async def test_wrapper_and_lock_style_usage():
+    obj = Value(12)
+    rwlock = RWLock(obj)
+
+    async with rwlock.read() as guard:
+        assert guard.value.value == 12
+
+    guard = await rwlock.acquire()
+    guard.value = Value(99)
+    await rwlock.release()
+
+    async with rwlock.read() as guard:
+        assert guard.value.value == 99
+
+
+@pytest.mark.asyncio
 async def test_read_is_readonly():
     obj = Value(12)
     rwlock = RWLock(obj)
