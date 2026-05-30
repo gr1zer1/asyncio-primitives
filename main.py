@@ -1,4 +1,4 @@
-from asyncio_primitives import RWLock
+from asyncio_primitives import RWLock, Mutex
 import asyncio
 
 
@@ -7,14 +7,24 @@ class Value:
         self.value = value
 
 
+obj = Value(12)
+
+mutex_obj = Mutex(obj)
+
+async def change():
+    async with mutex_obj.get() as guard:
+        guard = Value(16)
+
+
+async def read():
+    async with mutex_obj.get() as guard:
+        print(guard.value)
+
+
 
 async def main():
-    obj = Value(12)
 
-    rwlock = RWLock(obj)
 
-    async with await rwlock.read() as guard:
-        print(guard.value)
-    
+    asyncio.gather(change(), read())
 
 asyncio.run(main())
