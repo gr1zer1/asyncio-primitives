@@ -1,16 +1,16 @@
 # asyncio-primitives
 
-Набор дополнительных асинхронных примитивов для `asyncio`.
+A collection of additional asynchronous primitives for `asyncio`.
 
-Сейчас в пакете есть `RWLock` - read/write lock, который позволяет нескольким читателям работать одновременно, но пускает только одного писателя эксклюзивно.
+The package currently provides `RWLock`: a read/write lock that allows multiple readers at the same time, while writers get exclusive access.
 
-## Установка для разработки
+## Development Setup
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Запуск тестов
+## Running Tests
 
 ```bash
 pytest
@@ -18,7 +18,7 @@ pytest
 
 ## RWLock
 
-`RWLock` можно использовать как обертку над объектом( **Rust style** ):
+`RWLock` can be used as an object wrapper, similar to a Rust-style lock:
 
 ```python
 from asyncio_primitives import RWLock
@@ -38,7 +38,7 @@ async with rwlock.write() as value:
     value.value = 99
 ```
 
-Также `RWLock` можно использовать как обычный lock для защиты произвольного участка кода:
+`RWLock` can also be used as a regular lock for protecting an arbitrary code section:
 
 ```python
 rwlock = RWLock()
@@ -52,22 +52,22 @@ async with rwlock.writer():
     ...
 ```
 
-## Поведение
+## Behavior
 
-- Несколько читателей могут держать lock одновременно.
-- Писатель получает эксклюзивный доступ.
-- Если писатель уже ждет lock, новые читатели ждут, чтобы писатель не голодал.
-- `read()` возвращает read-proxy и запрещает менять поля объекта.
-- `write()` возвращает write-proxy и позволяет менять поля объекта.
-- `reader()` и `writer()` используются, когда lock нужен не как обертка над объектом, а как защита блока кода.
+- Multiple readers can hold the lock at the same time.
+- A writer gets exclusive access.
+- If a writer is already waiting for the lock, new readers wait so the writer does not starve.
+- `read()` returns a read proxy and prevents assigning object attributes through that proxy.
+- `write()` returns a write proxy and allows assigning object attributes through that proxy.
+- `reader()` and `writer()` are used when the lock is needed as a code-section guard rather than as an object wrapper.
 
-## Что стоит добавить дальше
+## Future Primitives
 
 ### AsyncCell
 
-Контейнер для одного значения с асинхронным доступом.
+A container for a single value with asynchronous access.
 
-Идея API:
+API idea:
 
 ```python
 cell = AsyncCell(10)
@@ -79,13 +79,13 @@ async with cell.write() as value:
     ...
 ```
 
-Зачем нужен: безопасно хранить и менять одно разделяемое значение между coroutines.
+Purpose: safely store and update one shared value between coroutines.
 
 ### AsyncOnce
 
-Примитив, который гарантирует, что асинхронная инициализация выполнится только один раз.
+A primitive that guarantees an asynchronous initializer runs only once.
 
-Идея API:
+API idea:
 
 ```python
 once = AsyncOnce()
@@ -93,13 +93,13 @@ once = AsyncOnce()
 await once.run(init_database)
 ```
 
-Зачем нужен: lazy init, подключение к базе, загрузка конфигов, прогрев кеша.
+Purpose: lazy initialization, database connections, config loading, cache warm-up.
 
 ### AsyncBarrier
 
-Барьер, который ждет, пока заданное количество задач дойдет до одной точки.
+A barrier that waits until a configured number of tasks reaches the same point.
 
-Идея API:
+API idea:
 
 ```python
 barrier = AsyncBarrier(3)
@@ -107,13 +107,13 @@ barrier = AsyncBarrier(3)
 await barrier.wait()
 ```
 
-Зачем нужен: синхронизация нескольких worker-задач перед переходом к следующей фазе.
+Purpose: synchronize multiple worker tasks before moving to the next phase.
 
 ### AsyncCountdownEvent
 
-Event, который срабатывает, когда счетчик дошел до нуля.
+An event that becomes set when a counter reaches zero.
 
-Идея API:
+API idea:
 
 ```python
 event = AsyncCountdownEvent(5)
@@ -122,13 +122,13 @@ event.decrement()
 await event.wait()
 ```
 
-Зачем нужен: дождаться завершения набора независимых операций.
+Purpose: wait for a set of independent operations to finish.
 
 ### AsyncRateLimiter
 
-Ограничитель скорости выполнения операций.
+A rate limiter for asynchronous operations.
 
-Идея API:
+API idea:
 
 ```python
 limiter = AsyncRateLimiter(rate=10, per=1.0)
@@ -137,13 +137,13 @@ async with limiter:
     await call_api()
 ```
 
-Зачем нужен: ограничивать запросы к API, очереди задач и фоновые операции.
+Purpose: limit requests to APIs, task queues, and background operations.
 
 ### AsyncResourcePool
 
-Пул переиспользуемых ресурсов.
+A pool of reusable resources.
 
-Идея API:
+API idea:
 
 ```python
 pool = AsyncResourcePool(create_connection, max_size=10)
@@ -152,13 +152,13 @@ async with pool.acquire() as connection:
     await connection.execute(...)
 ```
 
-Зачем нужен: управлять соединениями, клиентами, сессиями и другими дорогими объектами.
+Purpose: manage connections, clients, sessions, and other expensive objects.
 
 ### AsyncPriorityQueueLock
 
-Lock с очередью ожидания по приоритету.
+A lock with a priority-based wait queue.
 
-Идея API:
+API idea:
 
 ```python
 lock = AsyncPriorityQueueLock()
@@ -167,12 +167,12 @@ async with lock.acquire(priority=10):
     ...
 ```
 
-Зачем нужен: давать более важным задачам доступ раньше обычных.
+Purpose: let more important tasks acquire access before normal tasks.
 
-## План развития
+## Roadmap
 
-1. Довести `RWLock` до стабильного API.
-2. Добавить типизацию для proxy/guard объектов.
-3. Добавить тесты на отмену задач во время ожидания lock.
-4. Добавить `AsyncCell` как следующий небольшой примитив.
-5. После этого добавить `AsyncOnce`, `AsyncBarrier` и `AsyncRateLimiter`.
+1. Stabilize the `RWLock` API.
+2. Add stronger typing for proxy and guard objects.
+3. Add tests for task cancellation while waiting for the lock.
+4. Add `AsyncCell` as the next small primitive.
+5. Add `AsyncOnce`, `AsyncBarrier`, and `AsyncRateLimiter` after that.
