@@ -47,14 +47,16 @@ class MutexLock:
 
 class MutexGuard:
 
+    _mutex: Mutex
+
     def __init__(self, mutex: Mutex):
-        self._mutex = mutex
+        object.__setattr__(self, "_mutex", mutex)
 
 
     async def acquire(self):
         await self._mutex._increment()
-        
-        return self._mutex._obj
+
+        return self
 
     async def close(self):
         await self._mutex.close()
@@ -65,4 +67,19 @@ class MutexGuard:
 
     async def __aexit__(self, exc_type, exc, tb):
         return await self.close()
+
+
+    def __getattr__(self, name):
+        target = object.__getattribute__(self, "_mutex")
+        return getattr(target._obj, name)
+    
+    def __setattr__(self, name, value):
+        target = object.__getattribute__(self, "_mutex")
+        obj = target._obj
+        setattr(obj, name, value)
+    
+
+    def replace(self, new_obj: Any):
+        target = object.__getattribute__(self, "_mutex")
+        target._obj = new_obj
 

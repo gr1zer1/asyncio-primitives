@@ -13,7 +13,7 @@ mutex_obj = Mutex(obj)
 
 async def change():
     async with mutex_obj.get() as guard:
-        guard = Value(16)
+        guard.replace(Value(13))
 
 
 async def read():
