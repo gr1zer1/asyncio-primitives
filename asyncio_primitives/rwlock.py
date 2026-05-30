@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any
+from typing import Any, TypeVar, Generic
 from asyncio.locks import Condition
 from abc import ABC, abstractmethod
 from enum import Enum
@@ -10,7 +10,7 @@ class RWLock:
 
 
     def __init__(self, obj: Any | None = None):
-        self.obj: Any | None= obj
+        self._obj: Any | None= obj
         self._readers: int = 0
         self._condition: Condition = Condition()
         self._waiting_writers: int = 0
@@ -45,31 +45,28 @@ class RWLock:
             self._condition.notify_all()
     
 
-    async def read(self) -> ReadGuard:
-        await self._acquire_read()
+    def read(self) -> ReadProxy:
 
-        return ReadGuard(self)
+        return ReadProxy(self)
     
 
-    async def write(self) -> WriteGuard:
-        await self._acquire_write()
+    def write(self) -> WriteProxy:
 
-        return WriteGuard(self)
+        return WriteProxy(self)
     
-    async def reader(self):
-        await self._acquire_read()
+    def reader(self):
+       
 
         return RWLockGuard(lock=self, roll=RWRoll.Reader)
     
-    async def writer(self):
-        await self._acquire_write()
+    def writer(self):
         
         return RWLockGuard(lock = self, roll=RWRoll.Writer)
     
 
 
     
-class Guard(ABC):
+class Proxy(ABC):
 
     @abstractmethod
     async def close(self):...
@@ -84,50 +81,65 @@ class Guard(ABC):
 
 
 
+T = TypeVar("T")
 
-class ReadGuard(Guard):
+
+class ReadProxy(Proxy, Generic[T]):
     def __init__(self, lock: RWLock):
 
         object.__setattr__(self, "lock", lock)
-    
+        object.__setattr__(self, "_obj", lock._obj)    
 
+    
     def __getattr__(self, name):
-        target = object.__getattribute__(self, "lock").obj
         
-        attr = getattr(target, name)
-        return attr
-    
+        target = object.__getattribute__(self, "_obj")
+        return getattr(target, name)
+
     def __setattr__(self, name, value):
-        raise AttributeError("Читатель (ReaderGuard) не имеет прав на модификацию объекта!")
 
+        raise AttributeError("Читатель не имеет прав на модификацию!")
 
-    
-    @property
-    def value(self):
-        return self.lock.obj
-    
-    @value.setter
-    def value(self, value: Any):
-        raise Exception
+    async def __aenter__(self):
+        await self.lock._acquire_read()
+        return self
     
 
     async def close(self):
         await self.lock._release_read()
+    
+
+    def replace(self, new_obj: Any):
+        lock = object.__getattribute__(self, "lock")
+
+        object.__setattr__(self, "_obj", new_obj)   
+        lock._obj = new_obj
+    
+    
 
 
-class WriteGuard(Guard):
+class WriteProxy(Proxy, Generic[T]):
     def __init__(self, lock: RWLock):
-        self.lock = lock
+
+        object.__setattr__(self, "lock", lock)
+        object.__setattr__(self, "_obj", lock._obj)    
 
     
-    @property
-    def value(self):
-        return self.lock.obj
+    def __getattr__(self, name):
+        
+        target = object.__getattribute__(self, "_obj")
+        return getattr(target, name)
+
+    def __setattr__(self, name, value):
+
+        target = object.__getattribute__(self, "_obj")
+        setattr(target, name, value)
+       
+    async def __aenter__(self):
+        await self.lock._acquire_write()
+        return self
     
-    @value.setter
-    def value(self, value: Any):
-        self.lock.obj = value
-    
+
 
     async def close(self):
         await self.lock._release_write()
@@ -140,11 +152,19 @@ class RWLockGuard:
     
 
     async def __aenter__(self):
-        ...
+        match self.roll:
+            case RWRoll.Reader:
+                await self.lock._acquire_read()
+            case RWRoll.Writer:
+                await self.lock._acquire_write()
     
 
     async def __aexit__(self, exc_type, exc, tb):
-        ...
+        match self.roll:
+            case RWRoll.Reader:
+                await self.lock._release_read()
+            case RWRoll.Writer:
+                await self.lock._release_write()
 
 
 

@@ -15,8 +15,8 @@ async def test_basic_read():
     obj = Value(12)
     rwlock = RWLock(obj)
 
-    async with await rwlock.read() as guard:
-        assert guard.value.value == 12
+    async with rwlock.read() as guard:
+        assert guard.value == 12
 
 
 @pytest.mark.asyncio
@@ -24,10 +24,10 @@ async def test_basic_write():
     obj = Value(12)
     rwlock = RWLock(obj)
 
-    async with await rwlock.write() as guard:
+    async with rwlock.write() as guard:
         guard.value = Value(99)
 
-    async with await rwlock.read() as guard:
+    async with rwlock.read() as guard:
         assert guard.value.value == 99
 
 
@@ -37,14 +37,19 @@ async def test_wrapper_and_lock_style_usage():
     rwlock = RWLock(obj)
 
     async with rwlock.read() as guard:
-        assert guard.value.value == 12
+        assert guard.value == 12
 
-    guard = await rwlock.acquire()
-    guard.value = Value(99)
-    await rwlock.release()
+    rw_lock = RWLock()
+    async with rw_lock.writer() as guard:
+        obj = Value(99)
+        rwlock = RWLock(obj)
+
+
+    async with rw_lock.reader() as guard:
+        assert obj.value == 99
 
     async with rwlock.read() as guard:
-        assert guard.value.value == 99
+        assert guard.value == 99
 
 
 @pytest.mark.asyncio
@@ -53,7 +58,7 @@ async def test_read_is_readonly():
     rwlock = RWLock(obj)
 
     with pytest.raises(Exception):
-        async with await rwlock.read() as guard:
+        async with rwlock.read() as guard:
             guard.value = Value(99)
 
 
@@ -64,7 +69,7 @@ async def test_multiple_concurrent_readers():
     results = []
 
     async def reader(n):
-        async with await rwlock.read():
+        async with rwlock.read():
             await asyncio.sleep(0.05)
             results.append(n)
 
@@ -80,7 +85,7 @@ async def test_writer_is_exclusive():
     log = []
 
     async def writer():
-        async with await rwlock.write() as guard:
+        async with rwlock.write() as guard:
             log.append("writer_in")
             await asyncio.sleep(0.1)
             guard.value = Value(42)
@@ -88,7 +93,7 @@ async def test_writer_is_exclusive():
 
     async def reader():
         await asyncio.sleep(0.02)
-        async with await rwlock.read() as guard:
+        async with rwlock.read() as guard:
             log.append("reader_in")
             assert guard.value.value == 42
 
@@ -102,11 +107,11 @@ async def test_readers_count_resets():
     obj = Value(0)
     rwlock = RWLock(obj)
 
-    async with await rwlock.read():
+    async with rwlock.read():
         pass
     assert rwlock._readers == 0
 
-    async with await rwlock.write():
+    async with rwlock.write():
         pass
     assert rwlock._readers == 0
 
@@ -118,7 +123,7 @@ async def test_multiple_concurrent_writers():
     results = []
 
     async def writer(n):
-        async with await rwlock.write() as guard:
+        async with rwlock.write() as guard:
             await asyncio.sleep(0.05)
             results.append(n)
 
@@ -134,18 +139,18 @@ async def test_writer_priority():
     results = []
 
     async def slow_reader():
-        async with await rwlock.read():
+        async with rwlock.read():
             await asyncio.sleep(0.1)  
             results.append("slow_reader")
 
     async def writer():
         await asyncio.sleep(0.03)  
-        async with await rwlock.write():
+        async with rwlock.write():
             results.append("writer")
 
     async def late_reader():
         await asyncio.sleep(0.05)  
-        async with await rwlock.read():
+        async with rwlock.read():
             results.append("late_reader")
 
     await asyncio.gather(slow_reader(), writer(), late_reader())

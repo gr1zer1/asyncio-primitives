@@ -1,9 +1,9 @@
-from .rwlock import RWLock, ReadGuard, WriteGuard
+from .rwlock import RWLock, ReadProxy, WriteProxy
 
 
 
 __all__ = [
     "RWLock",
-    "ReadGuard",
-    "WriteGuard",
+    "ReadProxy",
+    "WriteProxy",
 ]
