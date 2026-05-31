@@ -14,11 +14,13 @@ class RMutex:
 
     async def _increment(self):
         async with self._cond:
+            
+            
+            while self._current_task != asyncio.current_task() and self._current_task is not None:
+                await self._cond.wait()
+            
             if self._current_task is None:
                 self._current_task = asyncio.current_task()
-            
-            while self._current_task != asyncio.current_task():
-                await self._cond.wait()
             
             self._counter += 1
     

@@ -1,5 +1,6 @@
 from .rwlock import RWLock, ReadProxy, WriteProxy
 from .mutex import Mutex
+from .rmutex import RMutex
 
 
 
@@ -8,4 +9,5 @@ __all__ = [
     "ReadProxy",
     "WriteProxy",
     "Mutex",
+    "RMutex",
 ]
