@@ -2,7 +2,10 @@
 
 A collection of additional asynchronous primitives for `asyncio`.
 
-The package currently provides `RWLock`: a read/write lock that allows multiple readers at the same time, while writers get exclusive access.
+The package currently provides:
+
+- `RWLock`: a read/write lock that allows multiple readers at the same time, while writers get exclusive access.
+- `Mutex`: an exclusive async lock that can wrap an object or protect an arbitrary code section.
 
 ## Development Setup
 
@@ -60,6 +63,51 @@ async with rwlock.writer():
 - `read()` returns a read proxy and prevents assigning object attributes through that proxy.
 - `write()` returns a write proxy and allows assigning object attributes through that proxy.
 - `reader()` and `writer()` are used when the lock is needed as a code-section guard rather than as an object wrapper.
+
+## Mutex
+
+`Mutex` provides exclusive access. Only one coroutine can hold it at a time.
+
+Like `RWLock`, it can be used as an object wrapper:
+
+```python
+from asyncio_primitives import Mutex
+
+
+class Value:
+    def __init__(self, value):
+        self.value = value
+
+
+mutex = Mutex(Value(12))
+
+async with mutex.get() as value:
+    value.value = 99
+```
+
+It can also be used as a regular lock for protecting a code section:
+
+```python
+mutex = Mutex()
+
+async with mutex.lock():
+    # exclusive section
+    ...
+```
+
+### Mutex API
+
+- `Mutex(obj=None)` creates a mutex. `obj` is optional and is used by `get()`.
+- `get()` returns a guard that locks the mutex and proxies attributes of the wrapped object.
+- `lock()` returns a guard that only locks and unlocks the mutex.
+- `close()` releases the mutex if it is currently locked.
+
+### Mutex Behavior
+
+- Only one holder can enter a `Mutex`-protected section at a time.
+- `get()` allows reading and assigning attributes on the wrapped object.
+- `replace(new_obj)` on the guard replaces the wrapped object.
+- `lock()` is useful when the protected state is stored outside the mutex.
 
 ## Future Primitives
 
