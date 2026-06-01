@@ -6,6 +6,7 @@ The package currently provides:
 
 - `RWLock`: a read/write lock that allows multiple readers at the same time, while writers get exclusive access.
 - `Mutex`: an exclusive async lock that can wrap an object or protect an arbitrary code section.
+- `RMutex`: a reentrant exclusive async lock for cases where the same task must be able to acquire the lock multiple times.
 
 ## Development Setup
 
@@ -108,6 +109,61 @@ async with mutex.lock():
 - `get()` allows reading and assigning attributes on the wrapped object.
 - `replace(new_obj)` on the guard replaces the wrapped object.
 - `lock()` is useful when the protected state is stored outside the mutex.
+
+## RMutex
+
+`RMutex` is a reentrant mutex. It provides exclusive access like `Mutex`, but the owning `asyncio.Task` can acquire it multiple times without blocking itself.
+
+Use it when a protected operation can call another protected operation from the same task:
+
+```python
+from asyncio_primitives import RMutex
+
+
+class Value:
+    def __init__(self, value):
+        self.value = value
+
+
+rmutex = RMutex(Value(0))
+
+async with rmutex.get() as value:
+    value.value += 1
+
+    async with rmutex.get() as same_value:
+        same_value.value += 1
+```
+
+`RMutex` can also protect an external state block:
+
+```python
+rmutex = RMutex()
+items = []
+
+async with rmutex.lock():
+    items.append(1)
+
+    async with rmutex.lock():
+        items.append(2)
+```
+
+### RMutex API
+
+- `RMutex(obj=None)` creates a reentrant mutex. `obj` is optional and is used by `get()`.
+- `get()` returns a guard that locks the mutex and proxies attributes of the wrapped object.
+- `lock()` returns a guard that only locks and unlocks the mutex.
+- `close()` releases one reentrant level when called by the owning task.
+
+### RMutex Behavior
+
+- Only the owning task can reenter the lock.
+- Other tasks wait until the owner releases all reentrant levels.
+- Each successful acquire increments an internal counter.
+- Each `close()` or `async with` exit decrements one level.
+- The mutex is fully released only when the counter reaches zero.
+- Calling `close()` from a non-owner task does not unlock the mutex.
+- `get()` allows reading and assigning attributes on the wrapped object.
+- `replace(new_obj)` on the guard replaces the wrapped object.
 
 ## Future Primitives
 
