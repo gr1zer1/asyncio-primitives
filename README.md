@@ -7,6 +7,7 @@ The package currently provides:
 - `RWLock`: a read/write lock that allows multiple readers at the same time, while writers get exclusive access.
 - `Mutex`: an exclusive async lock that can wrap an object or protect an arbitrary code section.
 - `RMutex`: a reentrant exclusive async lock for cases where the same task must be able to acquire the lock multiple times.
+- `Barrier`: a reusable synchronization point that releases tasks in groups.
 
 ## Development Setup
 
@@ -165,6 +166,52 @@ async with rmutex.lock():
 - `get()` allows reading and assigning attributes on the wrapped object.
 - `replace(new_obj)` on the guard replaces the wrapped object.
 
+## Barrier
+
+`Barrier` waits until a fixed number of coroutines reach the same point. When the required number of waiters arrives, all waiters in that generation are released together and the barrier becomes reusable for the next generation.
+
+```python
+import asyncio
+
+from asyncio_primitives import Barrier
+
+
+barrier = Barrier(3)
+
+
+async def worker(number):
+    print("before", number)
+    await barrier.wait()
+    print("after", number)
+
+
+await asyncio.gather(worker(1), worker(2), worker(3))
+```
+
+`Barrier` can also be used as an async context manager. Entering the context waits for the current generation to fill:
+
+```python
+barrier = Barrier(2)
+
+async with barrier:
+    # runs after two coroutines have entered the barrier
+    ...
+```
+
+### Barrier API
+
+- `Barrier(n)` creates a reusable barrier for `n` coroutines.
+- `wait()` waits until `n` coroutines have reached the barrier.
+- `async with barrier` calls `wait()` on enter and does nothing special on exit.
+
+### Barrier Behavior
+
+- `n` must be greater than zero.
+- Waiters are released by generation.
+- After a generation is released, the barrier can be used again.
+- If a waiting task is cancelled before the generation is released, it should not leave stale waiter state behind.
+- The barrier is intended for synchronization inside one event loop.
+
 ## Future Primitives
 
 ### AsyncCell
@@ -198,20 +245,6 @@ await once.run(init_database)
 ```
 
 Purpose: lazy initialization, database connections, config loading, cache warm-up.
-
-### AsyncBarrier
-
-A barrier that waits until a configured number of tasks reaches the same point.
-
-API idea:
-
-```python
-barrier = AsyncBarrier(3)
-
-await barrier.wait()
-```
-
-Purpose: synchronize multiple worker tasks before moving to the next phase.
 
 ### AsyncCountdownEvent
 
