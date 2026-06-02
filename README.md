@@ -8,6 +8,7 @@ The package currently provides:
 - `Mutex`: an exclusive async lock that can wrap an object or protect an arbitrary code section.
 - `RMutex`: a reentrant exclusive async lock for cases where the same task must be able to acquire the lock multiple times.
 - `Barrier`: a reusable synchronization point that releases tasks in groups.
+- `BoundedQueue`: an async FIFO queue with optional capacity limits.
 
 ## Development Setup
 
@@ -211,6 +212,57 @@ async with barrier:
 - After a generation is released, the barrier can be used again.
 - If a waiting task is cancelled before the generation is released, it should not leave stale waiter state behind.
 - The barrier is intended for synchronization inside one event loop.
+
+## BoundedQueue
+
+`BoundedQueue` is an asynchronous FIFO queue. Consumers wait when the queue is empty. Producers wait when the queue is full and a capacity limit is configured.
+
+```python
+import asyncio
+
+from asyncio_primitives import BoundedQueue
+
+
+queue = BoundedQueue(capacity=2)
+
+
+async def producer():
+    await queue.put("first")
+    await queue.put("second")
+
+
+async def consumer():
+    item = await queue.get()
+    print(item)
+
+
+await asyncio.gather(producer(), consumer())
+```
+
+The queue can also be created without a capacity limit:
+
+```python
+queue = BoundedQueue()
+
+await queue.put("item")
+item = await queue.get()
+```
+
+### BoundedQueue API
+
+- `BoundedQueue(capacity=None)` creates a queue. If `capacity` is `None`, the queue is unbounded.
+- `put(item)` adds an item to the tail of the queue.
+- `get()` removes and returns the oldest item from the head of the queue.
+
+### BoundedQueue Behavior
+
+- Items are returned in FIFO order.
+- `capacity` must be greater than zero when provided.
+- `get()` waits while the queue is empty.
+- `put()` waits while the queue is full.
+- Waiting producers are notified when consumers remove items.
+- Waiting consumers are notified when producers add items.
+- The queue is intended for synchronization inside one event loop.
 
 ## Future Primitives
 
