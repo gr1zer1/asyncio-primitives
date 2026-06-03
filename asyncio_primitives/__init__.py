@@ -3,6 +3,8 @@ from .mutex import Mutex
 from .rmutex import RMutex
 from .barrier import Barrier
 from .bounded_queue import BoundedQueue
+from .priority_queue import PriorityQueue
+
 
 
 
@@ -15,4 +17,6 @@ __all__ = [
     "RMutex",
     "Barrier",
     "BoundedQueue",
+    "PriorityQueue",
+
 ]
