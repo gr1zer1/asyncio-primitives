@@ -9,6 +9,7 @@ The package currently provides:
 - `RMutex`: a reentrant exclusive async lock for cases where the same task must be able to acquire the lock multiple times.
 - `Barrier`: a reusable synchronization point that releases tasks in groups.
 - `BoundedQueue`: an async FIFO queue with optional capacity limits.
+- `PriorityQueue`: an async queue that returns items by numeric priority.
 
 ## Development Setup
 
@@ -262,6 +263,60 @@ item = await queue.get()
 - `put()` waits while the queue is full.
 - Waiting producers are notified when consumers remove items.
 - Waiting consumers are notified when producers add items.
+- The queue is intended for synchronization inside one event loop.
+
+## PriorityQueue
+
+`PriorityQueue` is an asynchronous queue that returns the item with the lowest numeric priority first. Consumers wait when the queue is empty.
+
+```python
+import asyncio
+
+from asyncio_primitives import PriorityQueue
+
+
+queue = PriorityQueue()
+
+
+async def producer():
+    await queue.push("normal", priority=10)
+    await queue.push("urgent", priority=1)
+
+
+async def consumer():
+    item = await queue.pop()
+    print(item)  # urgent
+
+
+await asyncio.gather(producer(), consumer())
+```
+
+You can inspect the next item without removing it:
+
+```python
+queue = PriorityQueue()
+
+await queue.push("first", priority=1)
+
+next_item = await queue.peek()
+same_item = await queue.pop()
+```
+
+### PriorityQueue API
+
+- `PriorityQueue()` creates an empty priority queue.
+- `push(item, priority)` adds an item with a numeric priority.
+- `pop()` removes and returns the item with the lowest numeric priority.
+- `peek()` returns the item with the lowest numeric priority without removing it.
+- `is_empty()` returns `True` when the queue has no items.
+
+### PriorityQueue Behavior
+
+- Lower numeric priority values are returned before higher values.
+- `pop()` waits while the queue is empty.
+- `peek()` waits while the queue is empty and does not remove the item.
+- Items with the same priority are both allowed, but their relative order is not guaranteed.
+- Stored items do not need to be comparable with each other.
 - The queue is intended for synchronization inside one event loop.
 
 ## Future Primitives
