@@ -33,9 +33,14 @@ class PriorityQueue:
                 await self._cond.wait()
             inst = heapq.heappop(self._queue)
 
-            self._cond.notify_all()
 
             return inst.item
+    
+    async def peek(self) -> Any:
+        async with self._cond:
+            while self.is_empty():
+                await self._cond.wait()
+            return self._queue[0].item
     
 
 
