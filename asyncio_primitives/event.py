@@ -7,7 +7,7 @@ class Event:
         self._flag: bool = False
         self._future: asyncio.Future | None = None
 
-        self._get_future()
+        
     
 
     def _get_future(self) -> asyncio.Future:
@@ -31,7 +31,8 @@ class Event:
             future.set_result(None)
     
 
-    async def clear(self):
+    def clear(self):
         self._flag = False
-        if self._future is None or self._future.done():
-            self._get_future()
+        if self._future is not None and not self._future.done():
+            self._future.cancel()  # корутина получит CancelledError
+        self._future = None
