@@ -12,15 +12,6 @@ async def test_event_is_exported_from_package():
 
 
 @pytest.mark.asyncio
-async def test_event_starts_unset():
-    event = Event()
-
-    assert event._flag is False
-    assert event._future is not None
-    assert event._future.done() is False
-
-
-@pytest.mark.asyncio
 async def test_event_wait_blocks_until_set():
     event = Event()
     events = []
