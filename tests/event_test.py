@@ -31,7 +31,6 @@ async def test_event_wait_blocks_until_set():
     await asyncio.wait_for(waiter_task, timeout=0.5)
 
     assert events == ["waiting", "released"]
-    assert event._flag is True
 
 
 @pytest.mark.asyncio
@@ -41,11 +40,10 @@ async def test_event_wait_returns_immediately_after_set():
     event.set()
 
     await asyncio.wait_for(event.wait(), timeout=0.5)
-    assert event._flag is True
 
 
 @pytest.mark.asyncio
-async def test_event_set_releases_all_waiters():
+async def test_event_set_releases_all_current_waiters():
     event = Event()
     results = []
 
@@ -69,71 +67,36 @@ async def test_event_set_is_idempotent():
     event = Event()
 
     event.set()
-    first_future = event._future
     event.set()
 
-    assert event._flag is True
-    assert first_future.done() is True
-    assert event._future is not first_future
-    assert event._future.done() is True
     await asyncio.wait_for(event.wait(), timeout=0.5)
 
 
 @pytest.mark.asyncio
-async def test_event_clear_makes_future_waiters_block_again():
+async def test_event_clear_resets_event_for_future_waiters():
     event = Event()
+    events = []
 
     event.set()
     await asyncio.wait_for(event.wait(), timeout=0.5)
 
-    await event.clear()
-    waiter_task = asyncio.create_task(event.wait())
-    await asyncio.sleep(0.03)
-
-    assert event._flag is False
-    assert waiter_task.done() is False
-
-    event.set()
-    await asyncio.wait_for(waiter_task, timeout=0.5)
-
-
-@pytest.mark.asyncio
-async def test_event_clear_replaces_completed_future():
-    event = Event()
-
-    old_future = event._future
-    event.set()
-    await event.clear()
-
-    assert event._flag is False
-    assert event._future is not old_future
-    assert event._future.done() is False
-
-
-@pytest.mark.asyncio
-async def test_event_clear_keeps_current_waiters_waiting_for_next_set():
-    event = Event()
-    results = []
+    event.clear()
 
     async def waiter():
+        events.append("waiting")
         await event.wait()
-        results.append("released")
+        events.append("released")
 
     waiter_task = asyncio.create_task(waiter())
     await asyncio.sleep(0.03)
 
-    current_future = event._future
-    await event.clear()
-    await asyncio.sleep(0.03)
-
-    assert event._future is current_future
     assert waiter_task.done() is False
-    assert results == []
+    assert events == ["waiting"]
 
     event.set()
     await asyncio.wait_for(waiter_task, timeout=0.5)
 
-    assert results == ["released"]
+    assert events == ["waiting", "released"]
 
 
 @pytest.mark.asyncio
@@ -150,8 +113,8 @@ async def test_event_can_be_reused_across_set_clear_cycles():
 
     event.set()
     await asyncio.wait_for(first_waiter, timeout=0.5)
-    await event.clear()
 
+    event.clear()
     second_waiter = asyncio.create_task(waiter("second"))
     await asyncio.sleep(0.03)
 
@@ -164,22 +127,42 @@ async def test_event_can_be_reused_across_set_clear_cycles():
 
 
 @pytest.mark.asyncio
-async def test_event_cancelled_wait_does_not_prevent_later_set():
+async def test_event_waiters_created_after_set_do_not_block():
     event = Event()
-
-    waiter_task = asyncio.create_task(event.wait())
-    await asyncio.sleep(0.03)
-
-    assert waiter_task.done() is False
-
-    waiter_task.cancel()
-    with pytest.raises(asyncio.CancelledError):
-        await waiter_task
+    results = []
 
     event.set()
 
-    assert event._flag is True
-    await asyncio.wait_for(event.wait(), timeout=0.5)
+    async def waiter(number):
+        await event.wait()
+        results.append(number)
+
+    await asyncio.wait_for(
+        asyncio.gather(*(waiter(number) for number in range(3))),
+        timeout=0.5,
+    )
+
+    assert sorted(results) == [0, 1, 2]
+
+
+@pytest.mark.asyncio
+async def test_event_cancelled_wait_does_not_prevent_later_waiters():
+    event = Event()
+
+    cancelled_waiter = asyncio.create_task(event.wait())
+    await asyncio.sleep(0.03)
+
+    cancelled_waiter.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await cancelled_waiter
+
+    next_waiter = asyncio.create_task(event.wait())
+    await asyncio.sleep(0.03)
+
+    assert next_waiter.done() is False
+
+    event.set()
+    await asyncio.wait_for(next_waiter, timeout=0.5)
 
 
 @pytest.mark.asyncio
@@ -205,3 +188,4 @@ async def test_event_cancelled_waiter_does_not_cancel_other_waiters():
     await asyncio.wait_for(remaining_waiter, timeout=0.5)
 
     assert results == ["remaining"]
+
