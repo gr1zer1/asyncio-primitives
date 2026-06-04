@@ -8,6 +8,7 @@ The package currently provides:
 - `Mutex`: an exclusive async lock that can wrap an object or protect an arbitrary code section.
 - `RMutex`: a reentrant exclusive async lock for cases where the same task must be able to acquire the lock multiple times.
 - `Barrier`: a reusable synchronization point that releases tasks in groups.
+- `Event`: an async event flag that wakes waiters when it is set.
 - `BoundedQueue`: an async FIFO queue with optional capacity limits.
 - `PriorityQueue`: an async queue that returns items by numeric priority.
 
@@ -213,6 +214,58 @@ async with barrier:
 - After a generation is released, the barrier can be used again.
 - If a waiting task is cancelled before the generation is released, it should not leave stale waiter state behind.
 - The barrier is intended for synchronization inside one event loop.
+
+## Event
+
+`Event` is an asynchronous flag. Coroutines can wait until the flag is set, and `set()` wakes all current waiters.
+
+```python
+import asyncio
+
+from asyncio_primitives import Event
+
+
+event = Event()
+
+
+async def worker():
+    await event.wait()
+    print("event is set")
+
+
+async def controller():
+    event.set()
+
+
+await asyncio.gather(worker(), controller())
+```
+
+After the event is set, future waiters return immediately until the event is cleared:
+
+```python
+event = Event()
+
+event.set()
+await event.wait()
+
+event.clear()
+```
+
+### Event API
+
+- `Event()` creates an unset event.
+- `wait()` waits until the event is set.
+- `set()` sets the event and wakes all current waiters.
+- `clear()` clears the event so future waiters block again.
+
+### Event Behavior
+
+- `wait()` returns immediately while the event is set.
+- `wait()` blocks while the event is unset.
+- `set()` is synchronous and wakes all current waiters.
+- `clear()` is synchronous and resets the event.
+- Current waiters are cancelled when `clear()` is called while they are waiting.
+- The event is intended for synchronization inside one event loop.
 
 ## BoundedQueue
 
