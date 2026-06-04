@@ -4,7 +4,7 @@ from .rmutex import RMutex
 from .barrier import Barrier
 from .bounded_queue import BoundedQueue
 from .priority_queue import PriorityQueue
-
+from .event import Event
 
 
 
@@ -18,5 +18,5 @@ __all__ = [
     "Barrier",
     "BoundedQueue",
     "PriorityQueue",
-
+    "Event",
 ]
