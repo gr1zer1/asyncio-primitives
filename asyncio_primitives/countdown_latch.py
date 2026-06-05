@@ -16,7 +16,6 @@ class CountdownLatch:
         async with self._cond:
             while self._n > 0:
                 await self._cond.wait()
-            self._cond.notify_all()
     
 
     async def countdown(self):
