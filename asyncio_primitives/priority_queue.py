@@ -2,7 +2,7 @@ import heapq
 from dataclasses import dataclass, field
 from typing import Any
 
-from asyncio.locks import Condition
+from .condition import Condition
 
 
 @dataclass(order=True)

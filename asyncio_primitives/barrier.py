@@ -1,7 +1,7 @@
 import asyncio
 from types import TracebackType
 
-from asyncio.locks import Condition
+from .condition import Condition
 
 
 class Barrier:

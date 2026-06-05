@@ -1,5 +1,5 @@
 from typing import Any
-from asyncio.locks import Condition
+from .condition import Condition
 
 
 class Mutex:
@@ -82,4 +82,3 @@ class MutexGuard:
     def replace(self, new_obj: Any):
         target = object.__getattribute__(self, "_mutex")
         target._obj = new_obj
-

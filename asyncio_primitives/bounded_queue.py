@@ -1,7 +1,7 @@
 from collections import deque
 from typing import Generic, TypeVar
 
-from asyncio.locks import Condition
+from .condition import Condition
 
 
 T = TypeVar("T")

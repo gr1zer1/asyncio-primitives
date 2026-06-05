@@ -1,6 +1,6 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from asyncio.locks import Condition
+from .condition import Condition
 from enum import Enum
 from types import TracebackType
 from typing import Any, Generic, TypeVar
