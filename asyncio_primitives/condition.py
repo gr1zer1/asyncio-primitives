@@ -23,9 +23,12 @@ class Lock:
         try:
             while self._locked or self._waiters[0] is not future:
                 await future
+
             self._waiters.popleft()
             self._locked = True
+
             return True
+        
         except BaseException:
             if future in self._waiters:
                 self._waiters.remove(future)

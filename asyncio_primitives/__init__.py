@@ -6,10 +6,7 @@ from .bounded_queue import BoundedQueue
 from .priority_queue import PriorityQueue
 from .event import Event
 from .condition import Condition, Lock
-
-
-
-
+from .countdown_latch import CountdownLatch
 
 
 __all__ = [
@@ -24,4 +21,5 @@ __all__ = [
     "Event",
     "Condition",
     "Lock",
+    "CountdownLatch"
 ]
