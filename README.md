@@ -9,6 +9,7 @@ The package currently provides:
 - `RMutex`: a reentrant exclusive async lock for cases where the same task must be able to acquire the lock multiple times.
 - `Barrier`: a reusable synchronization point that releases tasks in groups.
 - `Event`: an async event flag that wakes waiters when it is set.
+- `CountdownLatch`: a one-shot latch that opens after a counter reaches zero.
 - `BoundedQueue`: an async FIFO queue with optional capacity limits.
 - `PriorityQueue`: an async queue that returns items by numeric priority.
 
@@ -269,6 +270,70 @@ event.clear()
 
 ## BoundedQueue
 
+## CountdownLatch
+
+`CountdownLatch` lets coroutines wait until a fixed number of operations have
+completed. Each `countdown()` decrements the internal counter. When the counter
+reaches zero, all current waiters are released and future waiters return
+immediately.
+
+```python
+import asyncio
+
+from asyncio_primitives import CountdownLatch
+
+
+latch = CountdownLatch(3)
+
+
+async def worker(number):
+    # do some independent work
+    await asyncio.sleep(0.1)
+    await latch.countdown()
+
+
+async def controller():
+    await latch.wait()
+    print("all workers finished")
+
+
+await asyncio.gather(
+    controller(),
+    worker(1),
+    worker(2),
+    worker(3),
+)
+```
+
+After the latch opens, it stays open:
+
+```python
+latch = CountdownLatch(1)
+
+await latch.countdown()
+await latch.wait()  # returns immediately
+await latch.countdown()  # leaves the count at zero
+```
+
+### CountdownLatch API
+
+- `CountdownLatch(n=1)` creates a latch with an initial count.
+- `wait()` waits until the count reaches zero.
+- `countdown()` decrements the count and wakes all waiters when it reaches zero.
+- `count` returns the current count.
+
+### CountdownLatch Behavior
+
+- `n` must be greater than zero.
+- `wait()` blocks while `count` is greater than zero.
+- `wait()` returns immediately after the count reaches zero.
+- All current waiters are released when the count reaches zero.
+- Extra `countdown()` calls after zero leave the count at zero.
+- The latch is one-shot: it cannot be reset or reused with a new count.
+- The latch is intended for synchronization inside one event loop.
+
+## BoundedQueue
+
 `BoundedQueue` is an asynchronous FIFO queue. Consumers wait when the queue is empty. Producers wait when the queue is full and a capacity limit is configured.
 
 ```python
@@ -405,21 +470,6 @@ await once.run(init_database)
 ```
 
 Purpose: lazy initialization, database connections, config loading, cache warm-up.
-
-### AsyncCountdownEvent
-
-An event that becomes set when a counter reaches zero.
-
-API idea:
-
-```python
-event = AsyncCountdownEvent(5)
-
-event.decrement()
-await event.wait()
-```
-
-Purpose: wait for a set of independent operations to finish.
 
 ### AsyncRateLimiter
 
