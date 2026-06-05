@@ -5,7 +5,7 @@ from .barrier import Barrier
 from .bounded_queue import BoundedQueue
 from .priority_queue import PriorityQueue
 from .event import Event
-from .condition import Condition
+from .condition import Condition, Lock
 
 
 
@@ -23,4 +23,5 @@ __all__ = [
     "PriorityQueue",
     "Event",
     "Condition",
+    "Lock",
 ]
