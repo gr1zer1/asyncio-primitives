@@ -7,6 +7,7 @@ from .priority_queue import PriorityQueue
 from .event import Event
 from .condition import Condition, Lock
 from .countdown_latch import CountdownLatch
+from .cache import Cache
 
 
 __all__ = [
@@ -21,5 +22,6 @@ __all__ = [
     "Event",
     "Condition",
     "Lock",
-    "CountdownLatch"
+    "CountdownLatch",
+    "Cache",
 ]

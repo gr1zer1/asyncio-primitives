@@ -1,30 +1,23 @@
-from asyncio_primitives import RWLock, Mutex
+from asyncio_primitives import Cache
 import asyncio
 
 
-class Value:
-    def __init__(self, value):
-        self.value = value
+cache = Cache()
+db = {2:"user_2"}
 
+call_count = 0
 
-obj = Value(12)
-
-mutex_obj = Mutex(obj)
-
-async def change():
-    async with mutex_obj.get() as guard:
-        guard.replace(Value(13))
-
-
-async def read():
-    async with mutex_obj.get() as guard:
-        print(guard.value)
-
-
+@cache.wrapper
+async def get_data_from_db(user_id: int):
+    global call_count
+    call_count += 1
+    await asyncio.sleep(0.1) 
+    return db.get(user_id)
 
 async def main():
+    results = await asyncio.gather(*[get_data_from_db(2) for _ in range(100)])
+    print(f"DB вызвана: {call_count} раз") 
+    print(f"Результаты одинаковые: {len(set(results)) == 1}")
 
-
-    asyncio.gather(change(), read())
 
 asyncio.run(main())
